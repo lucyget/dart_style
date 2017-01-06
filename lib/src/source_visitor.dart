@@ -173,20 +173,15 @@ class SourceVisitor implements AstVisitor {
 
   // TODO(rnystrom): Type annotate once analyzer publishes a version with the
   // new AST type.
-  // TODO(rnystrom): Test.
   visitAssertInitializer(node) {
-    _simpleStatement(node, () {
-      token(node.assertKeyword);
+    token(node.assertKeyword);
 
-      var arguments = <Expression>[node.condition];
-      if (node.message != null) arguments.add(node.message);
+    var arguments = <Expression>[node.condition];
+    if (node.message != null) arguments.add(node.message);
 
-      builder.nestExpression();
-      var visitor = new ArgumentListVisitor.forArguments(
-          this, node.leftParenthesis, node.rightParenthesis, arguments);
-      visitor.visit();
-      builder.unnest();
-    });
+    var visitor = new ArgumentListVisitor.forArguments(
+        this, node.leftParenthesis, node.rightParenthesis, arguments);
+    visitor.visit();
   }
 
   visitAssertStatement(AssertStatement node) {

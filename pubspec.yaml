@@ -29,3 +29,10 @@ executables:
 transformers:
 - $dart2js:
     $exclude: 'test/**'
+
+# TODO: Temp! Remove these once they have been published.
+dependency_overrides:
+  analyzer:
+    path: ../dart/sdk/pkg/analyzer
+  front_end:
+    path: ../dart/sdk/pkg/front_end
