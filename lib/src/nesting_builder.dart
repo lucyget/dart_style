@@ -4,6 +4,8 @@
 
 library dart_style.src.nesting_builder;
 
+import 'alignment.dart';
+import 'chunk.dart';
 import 'nesting_level.dart';
 import 'whitespace.dart';
 
@@ -83,7 +85,7 @@ class NestingBuilder {
 
     // Indentation should only change outside of nesting.
     assert(_pendingNesting == null);
-    assert(_nesting.indent == 0);
+    assert(!_nesting.isIndented);
 
     _stack.add(_stack.last + spaces);
   }
@@ -92,12 +94,18 @@ class NestingBuilder {
   void unindent() {
     // Indentation should only change outside of nesting.
     assert(_pendingNesting == null);
-    assert(_nesting.indent == 0);
+    assert(!_nesting.isIndented);
 
     // If this fails, an unindent() call did not have a preceding indent() call.
     assert(_stack.isNotEmpty);
 
     _stack.removeLast();
+  }
+
+  /// If [withParent] is `true`, when this indentation is activated the parent
+  /// indentation will be activated as well.
+  void align(Alignment alignTo, {bool withParent}) {
+    _pendingNesting = (_pendingNesting ?? _nesting).align(alignTo, withParent: withParent);
   }
 
   /// Begins a new expression nesting level [indent] deeper than the current
@@ -107,14 +115,13 @@ class NestingBuilder {
   /// if the previous line has a lower level of nesting.
   ///
   /// If [indent] is omitted, defaults to [Indent.expression].
-  void nest([int indent]) {
+  ///
+  /// If [withParent] is `true`, when this indentation is activated the parent
+  /// indentation will be activated as well.
+  void nest({int indent, bool withParent}) {
     if (indent == null) indent = Indent.expression;
 
-    if (_pendingNesting != null) {
-      _pendingNesting = _pendingNesting.nest(indent);
-    } else {
-      _pendingNesting = _nesting.nest(indent);
-    }
+    _pendingNesting = (_pendingNesting ?? _nesting).nest(indent, withParent: withParent);
   }
 
   /// Discards the most recent level of expression nesting.

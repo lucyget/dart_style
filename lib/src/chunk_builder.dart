@@ -4,6 +4,7 @@
 
 library dart_style.src.chunk_builder;
 
+import 'alignment.dart';
 import 'chunk.dart';
 import 'dart_formatter.dart';
 import 'debug.dart' as debug;
@@ -13,6 +14,8 @@ import 'nesting_builder.dart';
 import 'rule/rule.dart';
 import 'source_code.dart';
 import 'whitespace.dart';
+
+var times = 0;
 
 /// Matches if the last character of a string is an identifier character.
 final _trailingIdentifierChar = new RegExp(r"[a-zA-Z0-9_]$");
@@ -109,6 +112,12 @@ class ChunkBuilder {
 
   /// The current innermost rule.
   Rule get rule => _rules.last;
+
+  Alignment get alignment {
+    _pendingAlignment ??= new Alignment();
+    return _pendingAlignment;
+  }
+  Alignment _pendingAlignment;
 
   ChunkBuilder(this._formatter, this._source)
       : _parent = null,
@@ -422,17 +431,23 @@ class ChunkBuilder {
   /// splitter when it tries to recurse on huge collection literals.
   void forceRules() => _handleHardSplit();
 
+  void alignExpression(Alignment alignTo, {bool now}) {
+    _nesting.align(alignTo);
+    if (now ?? false) _nesting.commitNesting();
+  }
+
   /// Begins a new expression nesting level [indent] spaces deeper than the
   /// current one if it splits.
   ///
   /// If [indent] is omitted, defaults to [Indent.expression]. If [now] is
   /// `true`, commits the nesting change immediately instead of waiting until
   /// after the next chunk of text is written.
-  void nestExpression({int indent, bool now}) {
-    if (now == null) now = false;
-
-    _nesting.nest(indent);
-    if (now) _nesting.commitNesting();
+  ///
+  /// If [withParent] is `true`, when this indentation is activated the parent
+  /// indentation will be activated as well.
+  void nestExpression({int indent, bool now, bool withParent}) {
+    _nesting.nest(indent: indent, withParent: withParent);
+    if (now ?? false) _nesting.commitNesting();
   }
 
   /// Discards the most recent level of expression nesting.
@@ -760,9 +775,16 @@ class ChunkBuilder {
   /// chunk is complete.
   void _writeText(String text) {
     if (_chunks.isNotEmpty && _chunks.last.canAddText) {
+      _pendingAlignment?.finalize(_chunks.last, _chunks.last.text.length + (_pendingWhitespace == Whitespace.space ? 1 : 0));
+      _pendingAlignment = null;
+
       _chunks.last.appendText(text);
     } else {
-      _chunks.add(new Chunk(text));
+      var chunk = new Chunk(text);
+      _pendingAlignment?.finalize(chunk);
+      _pendingAlignment = null;
+
+      _chunks.add(chunk);
     }
   }
 

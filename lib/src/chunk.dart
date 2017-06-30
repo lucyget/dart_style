@@ -178,6 +178,8 @@ class Chunk extends Selection {
   /// The [Span]s that contain this chunk.
   final spans = <Span>[];
 
+  int depth;
+
   /// Creates a new chunk starting with [_text].
   Chunk(this._text);
 

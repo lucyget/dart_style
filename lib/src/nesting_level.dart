@@ -4,6 +4,8 @@
 
 library dart_style.src.nesting_level;
 
+import 'aligned_nesting_level.dart';
+import 'alignment.dart';
 import 'fast_hash.dart';
 
 /// A single level of expression nesting.
@@ -31,7 +33,7 @@ class NestingLevel extends FastHash {
   /// the containing level.
   ///
   /// Normally, this is [Indent.expression], but cascades use [Indent.cascade].
-  final int indent;
+  final int _indent;
 
   /// The total number of characters of indentation from this level and all of
   /// its parents, after determining which nesting levels are actually used.
@@ -40,15 +42,29 @@ class NestingLevel extends FastHash {
   int get totalUsedIndent => _totalUsedIndent;
   int _totalUsedIndent;
 
+  bool get isIndented => _indent != 0;
+
   bool get isNested => _parent != null;
 
-  NestingLevel() : indent = 0;
+  /// Whether activating this level should also activate the parent level.
+  ///
+  /// This is useful when the parent indentation doesn't cover its own text, and
+  /// thus may not have 
+  final bool withParent;
 
-  NestingLevel._(this._parent, this.indent);
+  NestingLevel() : _indent = 0, withParent = false;
+
+  NestingLevel.nested(this._parent, this._indent, bool withParent)
+      : withParent = withParent ?? false;
 
   /// Creates a new deeper level of nesting indented [spaces] more characters
   /// that the outer level.
-  NestingLevel nest(int spaces) => new NestingLevel._(this, spaces);
+  NestingLevel nest(int spaces, {bool withParent}) => new NestingLevel.nested(this, spaces, withParent);
+
+  NestingLevel align(Alignment alignTo, {bool withParent}) => new AlignedNestingLevel(this, alignTo, withParent);
+
+  bool mayMatchNesting(NestingLevel other) => identical(this, other) ||
+    other is AlignedNestingLevel;
 
   /// Clears the previously calculated total indent of this nesting level.
   void clearTotalUsedIndent() {
@@ -68,11 +84,11 @@ class NestingLevel extends FastHash {
       _totalUsedIndent += _parent.totalUsedIndent;
     }
 
-    if (usedNesting.contains(this)) _totalUsedIndent += indent;
+    if (usedNesting.contains(this)) _totalUsedIndent += _indent;
   }
 
   String toString() {
-    if (_parent == null) return indent.toString();
-    return "$parent:$indent";
+    if (_parent == null) return _indent.toString();
+    return "$parent:$_indent";
   }
 }

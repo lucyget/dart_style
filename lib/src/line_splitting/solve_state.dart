@@ -4,6 +4,7 @@
 
 library dart_style.src.line_splitting.solve_state;
 
+import '../aligned_nesting_level.dart';
 import '../debug.dart' as debug;
 import '../rule/rule.dart';
 import '../whitespace.dart';
@@ -284,18 +285,25 @@ class SolveState {
     for (var i = 0; i < _splitter.chunks.length - 1; i++) {
       var chunk = _splitter.chunks[i];
       if (chunk.rule.isSplit(getValue(chunk.rule), chunk)) {
-        usedNestingLevels.add(chunk.nesting);
-        chunk.nesting.clearTotalUsedIndent();
+        var nesting = chunk.nesting;
+        usedNestingLevels.add(nesting);
+
+        while (nesting.withParent) {
+          usedNestingLevels.add(nesting.parent);
+          nesting = nesting.parent;
+        }
+
+        nesting.clearTotalUsedIndent();
       }
     }
 
-    for (var nesting in usedNestingLevels) {
-      nesting.refreshTotalUsedIndent(usedNestingLevels);
-    }
-
     _splits = new SplitSet(_splitter.chunks.length);
+    var depth = 0;
     for (var i = 0; i < _splitter.chunks.length - 1; i++) {
       var chunk = _splitter.chunks[i];
+      chunk.depth = depth;
+      chunk.nesting.refreshTotalUsedIndent(usedNestingLevels);
+
       if (chunk.rule.isSplit(getValue(chunk.rule), chunk)) {
         var indent = 0;
         if (!chunk.flushLeftAfter) {
@@ -304,11 +312,16 @@ class SolveState {
 
           // And any expression nesting.
           indent += chunk.nesting.totalUsedIndent;
+          depth = chunk.nesting.totalUsedIndent;
 
           if (chunk.indentBlock(getValue)) indent += Indent.expression;
+        } else {
+          depth = 0;
         }
 
         _splits.add(i, indent);
+      } else {
+        depth += chunk.text.length;
       }
     }
   }
@@ -397,7 +410,7 @@ class SolveState {
         if (previousNesting != null &&
             chunk.nesting.totalUsedIndent != 0 &&
             chunk.nesting.totalUsedIndent == previousNesting.totalUsedIndent &&
-            !identical(chunk.nesting, previousNesting)) {
+            !chunk.nesting.mayMatchNesting(previousNesting)) {
           _overflowChars += 10000;
         }
 
