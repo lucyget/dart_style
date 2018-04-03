@@ -1419,7 +1419,9 @@ class SourceVisitor extends ThrowingAstVisitor {
 
   visitInstanceCreationExpression(InstanceCreationExpression node) {
     builder.startSpan();
-    token(node.keyword, after: space);
+    // TODO: Temp! No more "new" and "const"!
+    writePrecedingCommentsAndNewlines(node.keyword);
+//    token(node.keyword, after: space);
     builder.startSpan(Cost.constructorName);
 
     // Start the expression nesting for the argument list here, in case this

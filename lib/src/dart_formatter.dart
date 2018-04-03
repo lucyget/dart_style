@@ -130,9 +130,11 @@ class DartFormatter {
     // Format it.
     var visitor = new SourceVisitor(this, lineInfo, source);
     var output = visitor.run(node);
-    if (!string_compare.equalIgnoringWhitespace(source.text, output.text)) {
-      throw new UnexpectedOutputException(source.text, output.text);
-    }
+    // TODO: Temp! No sanity check since we do make non-whitespace changes by
+    // removing "new" and "const".
+//    if (!string_compare.equalIgnoringWhitespace(source.text, output.text)) {
+//      throw new UnexpectedOutputException(source.text, output.text);
+//    }
 
     return output;
   }
