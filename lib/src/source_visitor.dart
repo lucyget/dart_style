@@ -1420,9 +1420,13 @@ class SourceVisitor extends ThrowingAstVisitor {
   visitInstanceCreationExpression(InstanceCreationExpression node) {
     builder.startSpan();
     // TODO: Temp! No more "new" and "const"!
-    writePrecedingCommentsAndNewlines(node.keyword);
-    if (node.keyword.keyword == Keyword.CONST && !node.inConstantContext) {
-      token(node.keyword, after: space);
+    if (node.keyword != null) {
+      writePrecedingCommentsAndNewlines(node.keyword);
+      if (node.keyword.keyword == Keyword.CONST && !node.inConstantContext) {
+        token(node.keyword, after: space);
+      }
+    } else {
+      writePrecedingCommentsAndNewlines(node.beginToken);
     }
     builder.startSpan(Cost.constructorName);
 
