@@ -1421,7 +1421,9 @@ class SourceVisitor extends ThrowingAstVisitor {
     builder.startSpan();
     // TODO: Temp! No more "new" and "const"!
     writePrecedingCommentsAndNewlines(node.keyword);
-//    token(node.keyword, after: space);
+    if (node.keyword.keyword == Keyword.CONST && !node.inConstantContext) {
+      token(node.keyword, after: space);
+    }
     builder.startSpan(Cost.constructorName);
 
     // Start the expression nesting for the argument list here, in case this
@@ -2236,7 +2238,9 @@ class SourceVisitor extends ThrowingAstVisitor {
       Iterable<AstNode> elements, Token rightBracket,
       [int cost]) {
     if (node != null) {
-      modifier(node.constKeyword);
+      if (node.constKeyword?.keyword == Keyword.CONST && !node.inConstantContext) {
+        modifier(node.constKeyword);
+      }
       visit(node.typeArguments);
     }
 
