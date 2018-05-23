@@ -82,6 +82,9 @@ class SourceVisitor extends ThrowingAstVisitor {
   /// literal, we use the token to find that association.
   final Map<Token, ArgumentSublist> _blockArgumentLists = {};
 
+  /// How many levels deep inside a const context the visitor currently is.
+  int _constNesting = 0;
+
   /// Initialize a newly created visitor to write source code representing
   /// the visited nodes to the given [writer].
   SourceVisitor(this._formatter, this._lineInfo, this._source) {
@@ -97,6 +100,8 @@ class SourceVisitor extends ThrowingAstVisitor {
   /// is effectively private.
   SourceCode run(AstNode node) {
     visit(node);
+
+    if (_constNesting != 0) throw "!!!";
 
     // Output trailing comments.
     writePrecedingCommentsAndNewlines(node.endToken.next);
@@ -1222,6 +1227,10 @@ class SourceVisitor extends ThrowingAstVisitor {
   }
 
   visitFunctionExpression(FunctionExpression node) {
+    // Inside a function body is no longer in the surrounding const context.
+    var oldConstNesting = _constNesting;
+    _constNesting = 0;
+
     // TODO(rnystrom): This is working but not tested. As of 2016/11/29, the
     // latest version of analyzer on pub does not parse generic lambdas. When
     // a version of it that does is published, upgrade dart_style to use it and
@@ -1236,6 +1245,8 @@ class SourceVisitor extends ThrowingAstVisitor {
     //       var generic = <T, S>() {};
     //     }
     _visitBody(node.typeParameters, node.parameters, node.body);
+
+    _constNesting = oldConstNesting;
   }
 
   visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
@@ -1435,7 +1446,23 @@ class SourceVisitor extends ThrowingAstVisitor {
 
   visitInstanceCreationExpression(InstanceCreationExpression node) {
     builder.startSpan();
-    token(node.keyword, after: space);
+
+    // TODO(rnystrom): Handle comment before/after keyword.
+    var includeKeyword = true;
+
+    // Potentially remove the keyword.
+    if (node.keyword != null && _formatter.removeNewConst) {
+      if (node.keyword.keyword == Keyword.NEW) {
+        // Can always remove "new" if not wanted.
+        includeKeyword = false;
+      } else {
+        // Can only remove "const" in const context.
+        includeKeyword = _constNesting == 0;
+      }
+    }
+
+    if (includeKeyword) token(node.keyword, after: space);
+
     builder.startSpan(Cost.constructorName);
 
     // Start the expression nesting for the argument list here, in case this
@@ -1444,11 +1471,19 @@ class SourceVisitor extends ThrowingAstVisitor {
     builder.nestExpression();
     visit(node.constructorName);
 
+    if (node.keyword != null && node.keyword.keyword == Keyword.CONST) {
+      _constNesting++;
+    }
+
     builder.endSpan();
     visitArgumentList(node.argumentList, nestExpression: false);
     builder.endSpan();
 
     builder.unnest();
+
+    if (node.keyword != null && node.keyword.keyword == Keyword.CONST) {
+      _constNesting--;
+    }
   }
 
   visitIntegerLiteral(IntegerLiteral node) {
@@ -1894,6 +1929,10 @@ class SourceVisitor extends ThrowingAstVisitor {
 
     builder.endSpan();
 
+    if (node.keyword != null && node.keyword.keyword == Keyword.CONST) {
+      _constNesting++;
+    }
+
     // Use a single rule for all of the variables. If there are multiple
     // declarations, we will try to keep them all on one line. If that isn't
     // possible, we split after *every* declaration so that each is on its own
@@ -1901,6 +1940,10 @@ class SourceVisitor extends ThrowingAstVisitor {
     builder.startRule();
     visitCommaSeparatedNodes(node.variables, between: split);
     builder.endRule();
+
+    if (node.keyword != null && node.keyword.keyword == Keyword.CONST) {
+      _constNesting--;
+    }
   }
 
   visitVariableDeclarationStatement(VariableDeclarationStatement node) {
@@ -1951,7 +1994,9 @@ class SourceVisitor extends ThrowingAstVisitor {
   ///
   /// These always force the annotations to be on the previous line.
   void visitMetadata(NodeList<Annotation> metadata) {
+    _constNesting++;
     visitNodes(metadata, between: newline, after: newline);
+    _constNesting--;
   }
 
   /// Visit metadata annotations for a directive.
@@ -2093,6 +2138,10 @@ class SourceVisitor extends ThrowingAstVisitor {
       /* FunctionExpression|MethodDeclaration */ function) {
     visitMetadata(node.metadata as NodeList<Annotation>);
 
+    // Inside a function body is no longer in the surrounding const context.
+    var oldConstNesting = _constNesting;
+    _constNesting = 0;
+
     // Nest the signature in case we have to split between the return type and
     // name.
     builder.nestExpression();
@@ -2121,6 +2170,8 @@ class SourceVisitor extends ThrowingAstVisitor {
     // If it's an expression, we want to wrap the nesting around that so that
     // the body gets nested farther.
     if (function.body is ExpressionFunctionBody) builder.unnest();
+
+    _constNesting = oldConstNesting;
   }
 
   /// Visit the given function [parameters] followed by its [body], printing a
@@ -2250,7 +2301,11 @@ class SourceVisitor extends ThrowingAstVisitor {
       Iterable<AstNode> elements, Token rightBracket,
       [int cost]) {
     if (node != null) {
-      modifier(node.constKeyword);
+      // TODO(bob): Handle comment before/after.
+      if (!_formatter.removeNewConst || _constNesting == 0) {
+        modifier(node.constKeyword);
+      }
+
       visit(node.typeArguments);
     }
 
@@ -2260,6 +2315,8 @@ class SourceVisitor extends ThrowingAstVisitor {
       token(rightBracket);
       return;
     }
+
+    if (node != null && node.constKeyword != null) _constNesting++;
 
     // Force all of the surrounding collections to split.
     for (var i = 0; i < _collectionSplits.length; i++) {
@@ -2336,6 +2393,8 @@ class SourceVisitor extends ThrowingAstVisitor {
     }
 
     _endLiteralBody(rightBracket, ignoredRule: rule, forceSplit: force);
+
+    if (node != null && node.constKeyword != null) _constNesting--;
   }
 
   /// Writes [parameters], which is assumed to have a trailing comma after the

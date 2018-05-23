@@ -35,6 +35,9 @@ class DartFormatter {
   /// The number of characters of indentation to prefix the output lines with.
   final int indent;
 
+  /// Whether unneeded `new` and `const` keywords should be discarded.
+  final bool removeNewConst = true;
+
   /// Creates a new formatter for Dart code.
   ///
   /// If [lineEnding] is given, that will be used for any newlines in the
@@ -130,9 +133,9 @@ class DartFormatter {
     // Format it.
     var visitor = new SourceVisitor(this, lineInfo, source);
     var output = visitor.run(node);
-    if (!string_compare.equalIgnoringWhitespace(source.text, output.text)) {
-      throw new UnexpectedOutputException(source.text, output.text);
-    }
+//    if (!string_compare.equalIgnoringWhitespace(source.text, output.text)) {
+//      throw new UnexpectedOutputException(source.text, output.text);
+//    }
 
     return output;
   }

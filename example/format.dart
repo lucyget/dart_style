@@ -20,9 +20,17 @@ void main(List<String> args) {
   debug.traceSplitter = true;
   debug.useAnsiColors = true;
 
-  runTest("regression/0000/0068.stmt", 14);
+//  runTest("regression/0000/0068.stmt", 14);
 
-  formatStmt("hello(world);");
+  formatUnit("""
+  @Foo(const Bar(), const [])
+  var a = new Foo();
+  var b = const Bar(const Foo());
+  var c = const [const Foo(const [const Bar()])];
+  var d = const {const Foo(): const Bar(const [])};
+  const e = const [const Foo()];
+  const f = const [() => const [], const []];
+  """);
 }
 
 void formatStmt(String source, [int pageWidth = 80]) {
