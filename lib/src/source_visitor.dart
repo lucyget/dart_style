@@ -831,9 +831,13 @@ class SourceVisitor extends ThrowingAstVisitor {
       builder.startSpan();
       builder.nestExpression();
 
-      // The '=' separator is preceded by a space, ":" is not.
-      if (node.separator.type == TokenType.EQ) space();
-      token(node.separator);
+//      // The '=' separator is preceded by a space, ":" is not.
+//      if (node.separator.type == TokenType.EQ) space();
+//      token(node.separator);
+      // Switch everything to "=".
+      space();
+      writePrecedingCommentsAndNewlines(node.separator);
+      _writeText("=", node.separator.offset);
 
       soloSplit(_assignmentCost(node.defaultValue));
       visit(node.defaultValue);
