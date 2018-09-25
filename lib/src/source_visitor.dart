@@ -7,6 +7,7 @@ library dart_style.src.source_visitor;
 import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/src/generated/source.dart';
+import 'package:dart_style/src/type_aliases.dart';
 
 import 'argument_list_visitor.dart';
 import 'call_chain_visitor.dart';
@@ -1303,16 +1304,20 @@ class SourceVisitor extends ThrowingAstVisitor {
   }
 
   visitFunctionTypeAlias(FunctionTypeAlias node) {
-    visitMetadata(node.metadata);
+    if (_formatter.fixes.contains(StyleFix.noLegacyTypedefs)) {
+      _visitAsGenericTypeAlias(TypeAliasConverter.fromFunctionTypeAlias(node));
+    } else {
+      visitMetadata(node.metadata);
 
-    _simpleStatement(node, () {
-      token(node.typedefKeyword);
-      space();
-      visit(node.returnType, after: space);
-      visit(node.name);
-      visit(node.typeParameters);
-      visit(node.parameters);
-    });
+      _simpleStatement(node, () {
+        token(node.typedefKeyword);
+        space();
+        visit(node.returnType, after: space);
+        visit(node.name);
+        visit(node.typeParameters);
+        visit(node.parameters);
+      });
+    }
   }
 
   visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node) {
@@ -1329,11 +1334,20 @@ class SourceVisitor extends ThrowingAstVisitor {
   }
 
   visitGenericFunctionType(GenericFunctionType node) {
+    _visitAsGenericFunctionType(GenericFunctionTypeConverter(node));
+  }
+
+  _visitAsGenericFunctionType(GenericFunctionTypeConverter node) {
     builder.startLazyRule();
     builder.nestExpression();
 
     visit(node.returnType, after: split);
-    token(node.functionKeyword);
+
+    if (node.hasFunctionKeyword) {
+      token(node.functionKeyword);
+    } else {
+      builder.write(Keyword.FUNCTION.stringValue);
+    }
 
     builder.unnest();
     builder.endRule();
@@ -1342,8 +1356,12 @@ class SourceVisitor extends ThrowingAstVisitor {
   }
 
   visitGenericTypeAlias(GenericTypeAlias node) {
+    _visitAsGenericTypeAlias(TypeAliasConverter(node));
+  }
+
+  _visitAsGenericTypeAlias(TypeAliasConverter node) {
     visitNodes(node.metadata, between: newline, after: newline);
-    _simpleStatement(node, () {
+    _simpleStatement(node.base, () {
       token(node.typedefKeyword);
       space();
 
@@ -1357,12 +1375,18 @@ class SourceVisitor extends ThrowingAstVisitor {
       visit(node.typeParameters);
       split();
 
-      token(node.equals);
+      if (node.hasEqualsToken) {
+        token(node.equals);
+      } else {
+        builder.write(TokenType.EQ.stringValue);
+      }
+
       builder.endRule();
 
       space();
 
-      visit(node.functionType);
+      _visitAsGenericFunctionType(
+          GenericFunctionTypeConverter.fromTypeAlias(node));
     });
   }
 
@@ -1834,6 +1858,12 @@ class SourceVisitor extends ThrowingAstVisitor {
       builder.nestExpression();
       modifier(node.covariantKeyword);
       modifier(node.keyword);
+
+      if (_formatter.fixes.contains(StyleFix.noLegacyTypedefs) &&
+          node.type == null) {
+        builder.write(Keyword.DYNAMIC.stringValue);
+        space();
+      }
 
       visit(node.type);
 

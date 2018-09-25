@@ -18,6 +18,9 @@ class StyleFix {
   static const docComments = const StyleFix._(
       "doc-comments", 'Use triple slash for documentation comments.');
 
+  static const noLegacyTypedefs = const StyleFix._(
+      "no-legacy-typedefs", "Don't use the legacy typedef syntax");
+
   static const all = const [
     namedDefaultSeparator,
     optionalConst,
